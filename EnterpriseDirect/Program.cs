@@ -5,6 +5,7 @@ using EnterpriseDirect.Client.Pages;
 using EnterpriseDirect.Components;
 using EnterpriseDirect.Components.Account;
 using EnterpriseDirect.Data;
+using EnterpriseDirect.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,11 +36,14 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
+    .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+
+builder.Services.AddScoped<RoleService>();
 
 var app = builder.Build();
 
@@ -48,6 +52,15 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.Migrate();
+}
+
+// Configure roles
+
+using (var scope = app.Services.CreateScope())
+{
+    var roleService = scope.ServiceProvider.GetRequiredService<RoleService>();
+    await roleService.EnsureRolesAsync();
+    await roleService.CreateExampleUsersAsync();
 }
 
 // Configure the HTTP request pipeline.
