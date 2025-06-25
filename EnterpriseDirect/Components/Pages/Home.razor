@@ -1,4 +1,5 @@
-﻿@page "/"
+﻿@using System.Linq
+@page "/"
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Home</PageTitle>
@@ -12,13 +13,27 @@ else
     <h2>Welcome to Enterprise Direct!</h2>
 }
 
+<AuthorizeView>
+    <Authorized>
+        <h3>
+            Your role is: @(_isAdmin ? "Administrator" : "Read Only").
+        </h3>
+    </Authorized>
+    <NotAuthorized>
+        <p>Please use the sidebar to log in or register an account.</p>
+    </NotAuthorized>
+</AuthorizeView>
 @code {
+    private AuthenticationState _authState;
     private string? _userName;
+    private bool _isAdmin;
+    
+    private IEnumerable<string> _currentUserRoles = Enumerable.Empty<string>();
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
+        _authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = _authState.User;
 
         if (user.Identity is not null && user.Identity.IsAuthenticated)
         {
@@ -26,6 +41,8 @@ else
             _userName = user.Identity.Name 
                        ?? user.Claims.FirstOrDefault(c => c.Type == "name")?.Value
                        ?? user.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
+            
+            _isAdmin = user.Claims.Any(x => x.Type == System.Security.Claims.ClaimTypes.Role && x.Value == "Admin");
         }
     }
 }
