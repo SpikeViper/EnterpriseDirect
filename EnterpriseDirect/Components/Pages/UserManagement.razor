@@ -1,0 +1,94 @@
+﻿@page "/UserManagement"
+@using EnterpriseDirect.Services
+@using EnterpriseDirect.Shared.Models
+@inject UserService UserService
+@inject AuthenticationStateProvider AuthProvider
+@rendermode InteractiveServer
+
+<h3>User Management</h3>
+
+<p>
+    This page allows administrators to manage user roles. You can promote or demote users to/from admin status.
+    Please note this is an internal user table, and does not represent employees.
+</p>
+
+<AuthorizeView Roles="Admin">
+    <Authorized>
+        @if (_users == null)
+        {
+            <div>Loading...</div>
+        }
+        else
+        {
+            <table class="table table-striped">
+                <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Email</th>
+                    <th>Admin</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var user in _users)
+                {
+                    <tr>
+                        <td>@user.Id</td>
+                        <td>@user.Email</td>
+                        <td>@user.IsAdmin</td>
+                        <td>
+                            @{
+                                // Do NOT allow the current user to modify their own admin status
+                                // The backend prevents self-promoting, but self-demotion could cause frustration
+                                var currentUserEmail = _authState.User.Identity?.Name;
+                                @if (user.Email.ToLower() != currentUserEmail?.ToLower())
+                                {
+                                    if (!user.IsAdmin)
+                                    {
+                                        <button class="btn btn-sm btn-success" @onclick="async () => await AddAdmin(user.Id)">Add Admin</button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-danger" @onclick="async () => await RemoveAdmin(user.Id)">Remove Admin</button>
+                                    }
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <div class="alert alert-danger mt-3">
+            You do not have access to this page.
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code {
+    private AuthenticationState _authState;
+    private List<UserModel>? _users;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _authState = await AuthProvider.GetAuthenticationStateAsync();
+        _users = await UserService.GetAllUsersAsync();
+    }
+
+    private async Task AddAdmin(string userId)
+    {
+        await UserService.SetIsAdminAsync(userId, true);
+        _users = await UserService.GetAllUsersAsync();
+        Console.WriteLine($"User {userId} has been granted admin privileges.");
+    }
+
+    private async Task RemoveAdmin(string userId)
+    {
+        await UserService.SetIsAdminAsync(userId, false);
+        _users = await UserService.GetAllUsersAsync();
+        Console.WriteLine($"User {userId} has been removed from admin privileges.");
+    }
+}

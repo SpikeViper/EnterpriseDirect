@@ -41,9 +41,15 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
+// This creates a policy that requires a user to be an Admin to access certain resources.
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
+});
+
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
-builder.Services.AddScoped<RoleService>();
+builder.Services.AddScoped<UserService>();
 
 var app = builder.Build();
 
@@ -58,7 +64,7 @@ using (var scope = app.Services.CreateScope())
 
 using (var scope = app.Services.CreateScope())
 {
-    var roleService = scope.ServiceProvider.GetRequiredService<RoleService>();
+    var roleService = scope.ServiceProvider.GetRequiredService<UserService>();
     await roleService.EnsureRolesAsync();
     await roleService.CreateExampleUsersAsync();
 }

@@ -1,24 +1,26 @@
 ﻿using EnterpriseDirect.Data;
+using EnterpriseDirect.Shared.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace EnterpriseDirect.Services;
 
 /// <summary>
-/// The role service is a wrapper around the ASP.NET Core Identity RoleManager and UserManager.
+/// The user service is a wrapper around the ASP.NET Core Identity RoleManager and UserManager.
 /// It exposes high-level methods for creating and managing roles and users.
 /// </summary>
-public class RoleService
+public class UserService
 {
     private readonly IConfiguration _configuration;
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly ILogger<RoleService> _logger;
+    private readonly ILogger<UserService> _logger;
 
-    public RoleService(
+    public UserService(
         RoleManager<IdentityRole> roleManager,
         UserManager<ApplicationUser> userManager, 
         IConfiguration configuration, 
-        ILogger<RoleService> logger)
+        ILogger<UserService> logger)
     {
         this._roleManager = roleManager;
         this._userManager = userManager;
@@ -82,6 +84,52 @@ public class RoleService
                 await _userManager.AddToRoleAsync(readOnlyUser, "ReadOnly");
                 
                 _logger.LogInformation("Read-only user created with email: {Email}", readOnlyEmail);
+            }
+        }
+    }
+    
+    public async Task<List<UserModel>> GetAllUsersAsync()
+    {
+        var users = await _userManager.Users.ToListAsync();
+        var userModels = new List<UserModel>();
+
+        foreach (var user in users)
+        {
+            var roles = await _userManager.GetRolesAsync(user);
+            userModels.Add(new UserModel
+            {
+                Id = user.Id,
+                Email = user.Email,
+                IsAdmin = roles.Contains("Admin"),
+            });
+        }
+
+        return userModels;
+    }
+    
+    public async Task SetIsAdminAsync(string id, bool isAdmin)
+    {
+        var user = await _userManager.FindByIdAsync(id);
+        if (user == null)
+        {
+            _logger.LogWarning("User with email {Email} not found.", id);
+            return;
+        }
+
+        if (isAdmin)
+        {
+            if (!await _userManager.IsInRoleAsync(user, "Admin"))
+            {
+                await _userManager.AddToRoleAsync(user, "Admin");
+                _logger.LogInformation("User {Email} added to Admin role.", id);
+            }
+        }
+        else
+        {
+            if (await _userManager.IsInRoleAsync(user, "Admin"))
+            {
+                await _userManager.RemoveFromRoleAsync(user, "Admin");
+                _logger.LogInformation("User {Email} removed from Admin role.", id);
             }
         }
     }

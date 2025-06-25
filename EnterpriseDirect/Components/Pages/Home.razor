@@ -3,7 +3,14 @@
 
 <PageTitle>Home</PageTitle>
 
-<h2>Welcome back, @_userName!</h2>
+@if (_userName is not null) 
+{
+    <h2>Welcome back, @_userName!</h2>
+} 
+else 
+{
+    <h2>Welcome to Enterprise Direct!</h2>
+}
 
 @code {
     private string? _userName;

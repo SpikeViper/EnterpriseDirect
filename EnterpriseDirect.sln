@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterpriseDirect", "Enterpr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterpriseDirect.Client", "EnterpriseDirect.Client\EnterpriseDirect.Client.csproj", "{FB38AF0B-BDC9-4385-819C-ABDB19845894}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterpriseDirect.Shared", "EnterpriseDirect.Shared\EnterpriseDirect.Shared.csproj", "{FAD03080-F7D8-44F4-83D5-C7CE00FF609C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{FB38AF0B-BDC9-4385-819C-ABDB19845894}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FB38AF0B-BDC9-4385-819C-ABDB19845894}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FB38AF0B-BDC9-4385-819C-ABDB19845894}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FAD03080-F7D8-44F4-83D5-C7CE00FF609C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FAD03080-F7D8-44F4-83D5-C7CE00FF609C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FAD03080-F7D8-44F4-83D5-C7CE00FF609C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FAD03080-F7D8-44F4-83D5-C7CE00FF609C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
