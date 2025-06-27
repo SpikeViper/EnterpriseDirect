@@ -1,5 +1,7 @@
-﻿using EnterpriseDirect.Data;
+﻿using System.Security.Claims;
+using EnterpriseDirect.Data;
 using EnterpriseDirect.Shared.Models;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,17 +17,29 @@ public class UserService
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<UserService> _logger;
+    private readonly AuthenticationStateProvider _authProvider;
 
     public UserService(
         RoleManager<IdentityRole> roleManager,
         UserManager<ApplicationUser> userManager, 
         IConfiguration configuration, 
-        ILogger<UserService> logger)
+        ILogger<UserService> logger, 
+        AuthenticationStateProvider authProvider)
     {
         this._roleManager = roleManager;
         this._userManager = userManager;
         _configuration = configuration;
         _logger = logger;
+        _authProvider = authProvider;
+    }
+    
+    /// <summary>
+    /// Helper method to get the current user from the authentication state.
+    /// </summary>
+    private async Task<ClaimsPrincipal> GetCurrentUserAsync()
+    {
+        var authState = await _authProvider.GetAuthenticationStateAsync();
+        return authState.User;
     }
 
     public async Task EnsureRolesAsync()
@@ -88,6 +102,9 @@ public class UserService
         }
     }
     
+    /// <summary>
+    /// Returns all users in the system, including their role.
+    /// </summary>
     public async Task<List<UserModel>> GetAllUsersAsync()
     {
         var users = await _userManager.Users.ToListAsync();
@@ -107,8 +124,19 @@ public class UserService
         return userModels;
     }
     
+    /// <summary>
+    /// Sets the admin state of a user. Only users in the "Admin" role can change the admin state of other users.
+    /// </summary>
     public async Task SetIsAdminAsync(string id, bool isAdmin)
     {
+        var currentUser = await GetCurrentUserAsync();
+
+        // Check if the current user is in the "Admin" role
+        if (!currentUser.IsInRole("Admin"))
+        {
+            throw new UnauthorizedAccessException("Only administrators can change admin state.");
+        }
+        
         var user = await _userManager.FindByIdAsync(id);
         if (user == null)
         {

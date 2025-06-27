@@ -1,0 +1,618 @@
+﻿@page "/EmployeeManagement"
+@inject EmployeeService EmployeeService
+@inject IJSRuntime JsRuntime
+@rendermode InteractiveServer
+
+<h3>Employee Management</h3>
+
+<AuthorizeView>
+    <Authorized Context="authContext">
+        <h4>Manage Employees</h4>
+
+        @* Search/Filter Section *@
+        <div class="card mb-4">
+            <div class="card-header">Search & Filter Employees</div>
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="searchName" class="form-label">Search by Name</label>
+                        <input type="text" class="form-control" id="searchName" @bind-value="SearchName"
+                               @bind-value:event="oninput" placeholder="First or Last Name" />
+                    </div>
+                    <div class="col-md-3">
+                        <label for="searchDepartment" class="form-label">Department</label>
+                        <input type="text" class="form-control" id="searchDepartment" @bind-value="SearchDepartment"
+                               @bind-value:event="oninput" placeholder="e.g., HR, Engineering" />
+                    </div>
+                    <div class="col-md-3">
+                        <label for="searchJobTitle" class="form-label">Job Title</label>
+                        <input type="text" class="form-control" id="searchJobTitle" @bind-value="SearchJobTitle"
+                               @bind-value:event="oninput" placeholder="e.g., Software Engineer" />
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">Clear Filters</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <AuthorizeView Roles="Admin">
+            <Authorized Context="authContext2">
+                <div class="mb-3">
+                    <button class="btn btn-primary me-2" @onclick="ShowAddForm">Add New Employee</button>
+                    <button class="btn btn-secondary" @onclick="DownloadEmployeesCsv">Download Current Report (CSV)</button>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <p>You are logged in as Read-Only. Actions are disabled.</p>
+            </NotAuthorized>
+        </AuthorizeView>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-danger mt-3">
+                @_errorMessage
+            </div>
+        }
+
+        @if (_isLoading)
+        {
+            <p><em>Loading employees...</em></p>
+        }
+        else if (!_filteredEmployees.Any())
+        {
+            <p>No employees found matching your criteria.</p>
+        }
+        else
+        {
+            <p>Note: Click headers to sort by</p>
+            <table class="table table-striped table-hover">
+                <thead>
+                <tr>
+                    @* Sortable Headers *@
+                    <th @onclick="() => SortEmployees(nameof(EmployeeModel.Id))">ID @GetSortIcon(nameof(EmployeeModel.Id))</th>
+                    <th @onclick="() => SortEmployees(nameof(EmployeeModel.FirstName))">First Name @GetSortIcon(nameof(EmployeeModel.FirstName))</th>
+                    <th @onclick="() => SortEmployees(nameof(EmployeeModel.LastName))">Last Name @GetSortIcon(nameof(EmployeeModel.LastName))</th>
+                    <th @onclick="() => SortEmployees(nameof(EmployeeModel.Email))">Email @GetSortIcon(nameof(EmployeeModel.Email))</th>
+                    <th @onclick="() => SortEmployees(nameof(EmployeeModel.Department))">Department @GetSortIcon(nameof(EmployeeModel.Department))</th>
+                    <th @onclick="() => SortEmployees(nameof(EmployeeModel.JobTitle))">Job Title @GetSortIcon(nameof(EmployeeModel.JobTitle))</th>
+                    <th @onclick="() => SortEmployees(nameof(EmployeeModel.Status))">Status @GetSortIcon(nameof(EmployeeModel.Status))</th>
+                    <th @onclick="() => SortEmployees(nameof(EmployeeModel.HireDate))">Hire Date @GetSortIcon(nameof(EmployeeModel.HireDate))</th>
+                    <th @onclick="() => SortEmployees(nameof(EmployeeModel.EmploymentType))">Type @GetSortIcon(nameof(EmployeeModel.EmploymentType))</th>
+                    <th>Rate/Salary</th>
+
+                    <AuthorizeView Roles="Admin">
+                        <Authorized>
+                            <th>Actions</th>
+                        </Authorized>
+                    </AuthorizeView>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var emp in _filteredEmployees) @* Iterate through filtered employees *@
+                {
+                    <tr>
+                        <td>@emp.Id</td>
+                        <td>@emp.FirstName</td>
+                        <td>@emp.LastName</td>
+                        <td>@emp.Email</td>
+                        <td>@emp.Department</td>
+                        <td>@emp.JobTitle</td>
+                        <td>@emp.Status</td>
+                        <td>@emp.HireDate.ToShortDateString()</td>
+                        <td>@emp.EmploymentType</td>
+                        <td>
+                            @if (emp.HourlyRate.HasValue)
+                            {
+                                <span>@emp.HourlyRate.Value.ToString("C")/hr</span>
+                            }
+                            else if (emp.Salary.HasValue)
+                            {
+                                <span>@emp.Salary.Value.ToString("C")/yr</span>
+                            }
+                            else
+                            {
+                                <span>N/A</span>
+                            }
+                        </td>
+
+                        <AuthorizeView Roles="Admin">
+                            <Authorized>
+                                <td>
+                                    <button class="btn btn-sm btn-info me-2" @onclick="() => ShowEditForm(emp)">Edit</button>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDelete(emp.Id)">Delete</button>
+                                </td>
+                            </Authorized>
+                        </AuthorizeView>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+
+        @* Add/Edit Employee Form *@
+        @if (_showForm)
+        {
+            <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">@( _isNewEmployee ? "Add New Employee" : "Edit Employee")</h5>
+                            <button type="button" class="btn-close" @onclick="CancelForm"></button>
+                        </div>
+                        <div class="modal-body">
+                            <EditForm Model="_currentEmployee" OnValidSubmit="HandleValidSubmit" OnInvalidSubmit="HandleInvalidSubmit">
+                                <DataAnnotationsValidator />
+                                <ValidationSummary />
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="firstName" class="form-label">First Name</label>
+                                        <InputText id="firstName" class="form-control" @bind-Value="_currentEmployee.FirstName" />
+                                        <ValidationMessage For="() => _currentEmployee.FirstName" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="lastName" class="form-label">Last Name</label>
+                                        <InputText id="lastName" class="form-control" @bind-Value="_currentEmployee.LastName" />
+                                        <ValidationMessage For="() => _currentEmployee.LastName" />
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email</label>
+                                    <InputText id="email" type="email" class="form-control" @bind-Value="_currentEmployee.Email" />
+                                    <ValidationMessage For="() => _currentEmployee.Email" />
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="department" class="form-label">Department</label>
+                                        <InputText id="department" class="form-control" @bind-Value="_currentEmployee.Department" />
+                                        <ValidationMessage For="() => _currentEmployee.Department" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="jobTitle" class="form-label">Job Title</label>
+                                        <InputText id="jobTitle" class="form-control" @bind-Value="_currentEmployee.JobTitle" />
+                                        <ValidationMessage For="() => _currentEmployee.JobTitle" />
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="status" class="form-label">Status</label>
+                                        <InputSelect id="status" class="form-select" @bind-Value="_currentEmployee.Status">
+                                            <option value="">Select Status</option>
+                                            <option value="Active">Active</option>
+                                            <option value="On Leave">On Leave</option>
+                                            <option value="Terminated">Terminated</option>
+                                        </InputSelect>
+                                        <ValidationMessage For="() => _currentEmployee.Status" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="hireDate" class="form-label">Hire Date</label>
+                                        <InputDate id="hireDate" class="form-control" @bind-Value="_currentEmployee.HireDate" />
+                                        <ValidationMessage For="() => _currentEmployee.HireDate" />
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="employeeType" class="form-label">Employee Type</label>
+                                    <InputSelect id="employeeType" class="form-select" @bind-Value="_currentEmployee.EmploymentType">
+                                        <option value="FullTime">Full-Time</option>
+                                        <option value="PartTime">Part-Time</option>
+                                    </InputSelect>
+                                    <ValidationMessage For="() => _currentEmployee.EmploymentType" />
+                                </div>
+
+                                @if (_currentEmployee.EmploymentType == "FullTime")
+                                {
+                                    <div class="mb-3">
+                                        <label for="salary" class="form-label">Salary</label>
+                                        <InputNumber id="salary" class="form-control" @bind-Value="_currentEmployee.Salary" />
+                                        <ValidationMessage For="() => _currentEmployee.Salary" />
+                                    </div>
+                                }
+                                else if (_currentEmployee.EmploymentType == "PartTime")
+                                {
+                                    <div class="mb-3">
+                                        <label for="hourlyRate" class="form-label">Hourly Rate</label>
+                                        <InputNumber id="hourlyRate" class="form-control" @bind-Value="_currentEmployee.HourlyRate" />
+                                        <ValidationMessage For="() => _currentEmployee.HourlyRate" />
+                                    </div>
+                                }
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" @onclick="CancelForm">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">@( _isNewEmployee ? "Add Employee" : "Update Employee")</button>
+                                </div>
+                            </EditForm>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* Delete Confirmation *@
+        @if (_showDeleteConfirmation)
+        {
+            <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Confirm Delete</h5>
+                            <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                        </div>
+                        <div class="modal-body">
+                            Are you sure you want to delete employee with ID: @_employeeToDeleteId?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                            <button type="button" class="btn btn-danger" @onclick="DeleteEmployee">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <p>You must log in to view this data.</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    // --- State Variables ---
+    private List<EmployeeModel>? _allEmployees;       // Stores the full list from the service
+    private List<EmployeeModel> _filteredEmployees = new(); // Stores currently filtered/sorted list
+    private bool _isLoading = true;
+    private EmployeeModel _currentEmployee = new EmployeeModel(); // For add/edit form
+    private bool _showForm = false; // Controls visibility of the add/edit form
+    private bool _isNewEmployee = true; // True for Add, false for Edit
+
+    // For delete confirmation
+    private bool _showDeleteConfirmation = false;
+    private int _employeeToDeleteId;
+
+    // A flag to show an error message, if any
+    private string? _errorMessage;
+
+    // --- Search/Filter Properties ---
+    private string _searchName = string.Empty; // Used for searching by name
+    private string SearchName
+    {
+        get
+        {
+            return _searchName;
+        }
+        set
+        {
+            _searchName = value;
+            OnSearchInput();
+        }
+    }
+
+    private string _searchDepartment = string.Empty;
+    private string SearchDepartment
+    {
+        get
+        {
+            return _searchDepartment;
+        }
+        set
+        {
+            _searchDepartment = value;
+            OnSearchInput();
+        }
+    }
+    
+    private string _searchJobTitle = string.Empty;
+    private string SearchJobTitle
+    {
+        get
+        {
+            return _searchJobTitle;
+        }
+        set
+        {
+            _searchJobTitle = value;
+            OnSearchInput();
+        }
+    }
+
+    // --- Sorting Properties ---
+    private string _sortBy = nameof(EmployeeModel.LastName); // Default sort
+    private bool _sortAscending = true;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmployees();
+    }
+
+    private async Task LoadEmployees()
+    {
+        _isLoading = true;
+        try
+        {
+            _allEmployees = await EmployeeService.GetAllEmployeesAsync();
+            ApplyFiltersAndSort(); // Apply initial filters/sort after loading
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error loading employees: {ex.Message}";
+            Console.Error.WriteLine($"Error in LoadEmployees: {ex}");
+        }
+        finally
+        {
+            _isLoading = false;
+            _errorMessage = null; // Clear any previous errors on a successful load
+            StateHasChanged();
+        }
+    }
+
+    // --- Search/Filter Logic ---
+    private void ApplyFiltersAndSort()
+    {
+        if (_allEmployees == null)
+        {
+            _filteredEmployees = new();
+            return;
+        }
+
+        IEnumerable<EmployeeModel> query = _allEmployees;
+
+        // Apply Name Filter
+        if (!string.IsNullOrWhiteSpace(SearchName))
+        {
+            var search = SearchName.Trim().ToLower();
+            query = query.Where(e => e.FirstName.ToLower().Contains(search) ||
+                                     e.LastName.ToLower().Contains(search));
+        }
+
+        // Apply Department Filter
+        if (!string.IsNullOrWhiteSpace(_searchDepartment))
+        {
+            var search = _searchDepartment.Trim().ToLower();
+            query = query.Where(e => e.Department.ToLower().Contains(search));
+        }
+
+        // Apply Job Title Filter
+        if (!string.IsNullOrWhiteSpace(_searchJobTitle))
+        {
+            var search = _searchJobTitle.Trim().ToLower();
+            query = query.Where(e => e.JobTitle.ToLower().Contains(search));
+        }
+
+        // Apply Sorting
+        query = _sortAscending
+            ? query.OrderBy(e => GetSortValue(e, _sortBy))
+            : query.OrderByDescending(e => GetSortValue(e, _sortBy));
+
+        _filteredEmployees = query.ToList();
+    }
+
+    // Helper to get property value for sorting
+    private object? GetSortValue(EmployeeModel emp, string propertyName)
+    {
+        // Using reflection
+        var prop = typeof(EmployeeModel).GetProperty(propertyName);
+        return prop?.GetValue(emp, null);
+    }
+
+    // Sorting UI and Logic
+    private void SortEmployees(string newSortBy)
+    {
+        if (_sortBy == newSortBy)
+        {
+            _sortAscending = !_sortAscending; // Toggle sort direction
+        }
+        else
+        {
+            _sortBy = newSortBy;
+            _sortAscending = true; // Default to ascending for new sort column
+        }
+        ApplyFiltersAndSort(); // Re-apply sort
+    }
+
+    private MarkupString GetSortIcon(string columnName)
+    {
+        if (_sortBy != columnName)
+        {
+            return (MarkupString)""; // No icon if not sorted by this column
+        }
+
+        return (MarkupString)(_sortAscending ? " ▲" : " ▼");
+    }
+    
+    private void OnSearchInput()
+    {
+        ApplyFiltersAndSort();
+    }
+
+    private void ClearFilters()
+    {
+        SearchName = string.Empty;
+        _searchDepartment = string.Empty;
+        _searchJobTitle = string.Empty;
+        ApplyFiltersAndSort(); // Re-apply filters (which will now be empty)
+    }
+
+    // Form Handling
+    private void ShowAddForm()
+    {
+        _currentEmployee = new EmployeeModel
+        {
+            HireDate = DateTime.Today,
+            EmploymentType = "FullTime",
+            Status = "Active",
+            CreatedAt = DateTime.UtcNow, // Set initial for new employee, will be overwritten by service
+            UpdatedAt = DateTime.UtcNow // Set initial for new employee, will be overwritten by service
+        };
+        _isNewEmployee = true;
+        _showForm = true;
+        _errorMessage = null;
+    }
+
+    private void ShowEditForm(EmployeeModel employee)
+    {
+        // Create a deep copy to edit, so changes don't affect grid until saved
+        _currentEmployee = new EmployeeModel
+        {
+            Id = employee.Id,
+            FirstName = employee.FirstName,
+            LastName = employee.LastName,
+            Email = employee.Email,
+            Department = employee.Department,
+            JobTitle = employee.JobTitle,
+            Status = employee.Status,
+            HireDate = employee.HireDate,
+            EmploymentType = employee.EmploymentType,
+            HourlyRate = employee.HourlyRate,
+            Salary = employee.Salary,
+            CreatedAt = employee.CreatedAt,
+            UpdatedAt = employee.UpdatedAt
+        };
+        _isNewEmployee = false;
+        _showForm = true;
+        _errorMessage = null;
+    }
+
+    private void CancelForm()
+    {
+        _showForm = false;
+        _currentEmployee = new EmployeeModel(); // Clear selected employee
+        _errorMessage = null;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        _errorMessage = null;
+        try
+        {
+            // Clear the non-relevant property before sending to service
+            if (_currentEmployee.EmploymentType == "FullTime")
+            {
+                _currentEmployee.HourlyRate = null;
+            }
+            else if (_currentEmployee.EmploymentType == "PartTime")
+            {
+                _currentEmployee.Salary = null;
+            }
+
+            if (_isNewEmployee)
+            {
+                await EmployeeService.AddEmployeeAsync(_currentEmployee);
+                Console.WriteLine($"Added new employee: {_currentEmployee.FirstName} {_currentEmployee.LastName}");
+            }
+            else
+            {
+                await EmployeeService.UpdateEmployeeAsync(_currentEmployee);
+                Console.WriteLine($"Updated employee: {_currentEmployee.FirstName} {_currentEmployee.LastName}");
+            }
+
+            _showForm = false;
+            await LoadEmployees(); // Reload all data and re-apply filters/sort
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+            Console.WriteLine($"Authorization Error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"An unexpected error occurred: {ex.Message}";
+            Console.Error.WriteLine($"Error in HandleValidSubmit: {ex}");
+        }
+    }
+
+    private void HandleInvalidSubmit()
+    {
+        _errorMessage = "Please correct the form errors.";
+    }
+
+    // Delete Handling
+    private void ConfirmDelete(int employeeId)
+    {
+        _employeeToDeleteId = employeeId;
+        _showDeleteConfirmation = true;
+        _errorMessage = null;
+    }
+
+    private void CancelDelete()
+    {
+        _showDeleteConfirmation = false;
+        _employeeToDeleteId = 0;
+        _errorMessage = null;
+    }
+
+    private async Task DeleteEmployee()
+    {
+        try
+        {
+            await EmployeeService.DeleteEmployeeAsync(_employeeToDeleteId);
+            Console.WriteLine($"Deleted employee with ID: {_employeeToDeleteId}");
+
+            _showDeleteConfirmation = false;
+            _employeeToDeleteId = 0;
+            await LoadEmployees(); // Reload all data and re-apply filters/sort
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _errorMessage = ex.Message;
+            Console.WriteLine($"Authorization Error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error deleting employee: {ex.Message}";
+            Console.Error.WriteLine($"Error in DeleteEmployee: {ex}");
+        }
+    }
+
+    // CSV Generation (Client-side, based on filtered/sorted data)
+    private async Task DownloadEmployeesCsv()
+    {
+        _errorMessage = null;
+        try
+        {
+            if (!_filteredEmployees.Any())
+            {
+                _errorMessage = "No employees to export based on current filters.";
+                return;
+            }
+
+            var csvContent = GenerateCsvString(_filteredEmployees);
+            var fileName = $"Employees_Report_{DateTime.Now:yyyyMMdd_HHmmss}.csv"; // Simplified filename
+
+            await JsRuntime.InvokeVoidAsync("BlazorDownloadFile", fileName, csvContent);
+            Console.WriteLine($"Generated and sent CSV file: {fileName}");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to generate or download report: {ex.Message}";
+            Console.Error.WriteLine($"Error downloading CSV: {ex}");
+        }
+    }
+
+    // Helper method to generate CSV string from a list of EmployeeModel
+    private string GenerateCsvString(List<EmployeeModel> employees)
+    {
+        var csv = new StringBuilder();
+
+        // Add CSV header
+        csv.AppendLine("Id,FirstName,LastName,Email,Department,JobTitle,Status,HireDate,EmploymentType,HourlyRate,Salary,CreatedAt,UpdatedAt");
+
+        // Add employee data rows
+        foreach (var emp in employees)
+        {
+            csv.AppendLine($"{emp.Id}," +
+                           $"{CsvHelper.EscapeCsvField(emp.FirstName)}," +
+                           $"{CsvHelper.EscapeCsvField(emp.LastName)}," +
+                           $"{CsvHelper.EscapeCsvField(emp.Email)}," +
+                           $"{CsvHelper.EscapeCsvField(emp.Department)}," +
+                           $"{CsvHelper.EscapeCsvField(emp.JobTitle)}," +
+                           $"{CsvHelper.EscapeCsvField(emp.Status)}," +
+                           $"{emp.HireDate.ToShortDateString()}," +
+                           $"{CsvHelper.EscapeCsvField(emp.EmploymentType)}," +
+                           $"{emp.HourlyRate?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? ""}," +
+                           $"{emp.Salary?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? ""}," +
+                           $"{emp.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")}," +
+                           $"{emp.UpdatedAt?.ToString("yyyy-MM-ddTHH:mm:ssZ")}");
+        }
+        return csv.ToString();
+    }
+}

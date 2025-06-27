@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterpriseDirect.Client", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterpriseDirect.Shared", "EnterpriseDirect.Shared\EnterpriseDirect.Shared.csproj", "{FAD03080-F7D8-44F4-83D5-C7CE00FF609C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnterpriseDirect.Tests", "EnterpriseDirect.Tests\EnterpriseDirect.Tests.csproj", "{133616EF-CB88-4C67-B83E-4AD75E8B51D6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{FAD03080-F7D8-44F4-83D5-C7CE00FF609C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FAD03080-F7D8-44F4-83D5-C7CE00FF609C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FAD03080-F7D8-44F4-83D5-C7CE00FF609C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{133616EF-CB88-4C67-B83E-4AD75E8B51D6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{133616EF-CB88-4C67-B83E-4AD75E8B51D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{133616EF-CB88-4C67-B83E-4AD75E8B51D6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{133616EF-CB88-4C67-B83E-4AD75E8B51D6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

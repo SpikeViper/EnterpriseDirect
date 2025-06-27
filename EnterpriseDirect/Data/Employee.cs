@@ -46,6 +46,18 @@ public abstract class Employee
     /// The date the employee was hired.
     /// </summary>
     public DateTime HireDate { get; set; }
+    
+    // Fields for audit trail
+    
+    /// <summary>
+    /// The date and time when the employee record was created.
+    /// </summary>
+    public DateTime CreatedAt { get; set; }
+    
+    /// <summary>
+    /// The date and time when the employee record was last updated.
+    /// </summary>
+    public DateTime? UpdatedAt { get; set; }
 
     /// <summary>
     /// Builds the database model for the Employee entity and its derived types.

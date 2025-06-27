@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using EnterpriseDirect.Client.Pages;
 using EnterpriseDirect.Components;
 using EnterpriseDirect.Components.Account;
 using EnterpriseDirect.Data;
@@ -68,6 +67,9 @@ using (var scope = app.Services.CreateScope())
     var roleService = scope.ServiceProvider.GetRequiredService<UserService>();
     await roleService.EnsureRolesAsync();
     await roleService.CreateExampleUsersAsync();
+    
+    var employeeService = scope.ServiceProvider.GetRequiredService<EmployeeService>();
+    await employeeService.CreateExampleEmployeesAsync();
 }
 
 // Configure the HTTP request pipeline.
