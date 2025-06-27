@@ -56,7 +56,9 @@ public class EmployeeService
             HireDate = employee.HireDate,
             // Initialize rate/salary to null
             HourlyRate = null,
-            Salary = null
+            Salary = null,
+            CreatedAt = employee.CreatedAt,
+            UpdatedAt = employee.UpdatedAt
         };
 
         // Populate specific properties based on the actual type of the EF entity
