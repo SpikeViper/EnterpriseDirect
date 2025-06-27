@@ -16,8 +16,8 @@ public class EmployeeModel
     public string EmploymentType { get; set; } = default!; // "FullTime", "PartTime"
     
     // Full time
-    public decimal Salary { get; set; }
+    public decimal? Salary { get; set; }
     
     // Part time
-    public decimal HourlyRate { get; set; }
+    public decimal? HourlyRate { get; set; }
 }

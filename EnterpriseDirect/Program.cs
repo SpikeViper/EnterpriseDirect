@@ -50,6 +50,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<EmployeeService>();
 
 var app = builder.Build();
 
